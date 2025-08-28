@@ -1,0 +1,205 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Berlin — Event Deals Map (7 places)</title>
+
+  <!-- Leaflet CSS -->
+  <link
+    rel="stylesheet"
+    href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+    integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+    crossorigin=""
+  />
+
+  <style>
+    html,body { height:100%; margin:0; font-family:Arial,Helvetica,sans-serif; }
+    #map { position: absolute; top:0; right:0; bottom:0; left:320px; }
+    #sidebar {
+      position: absolute;
+      left:0; top:0; bottom:0;
+      width:320px;
+      padding:12px;
+      box-sizing:border-box;
+      background:#fafafa;
+      border-right:1px solid #ddd;
+      overflow:auto;
+    }
+    h1 { font-size:18px; margin:4px 0 12px 0; }
+    .place { padding:8px; border-bottom:1px solid #eee; cursor:pointer; }
+    .place:hover { background:#f0f8ff; }
+    .place small { color:#666; display:block; margin-top:4px; }
+    .popup-img { width:120px; height:auto; display:block; margin-top:6px; border-radius:4px; }
+    .deals { margin:6px 0 0 0; padding-left:16px; }
+    .coords { font-size:12px; color:#666; margin-top:6px; }
+    .open-btn { margin-top:8px; display:inline-block; padding:6px 10px; background:#1976d2; color:white; text-decoration:none; border-radius:4px; font-size:13px; }
+    footer { font-size:12px; color:#666; margin-top:8px; }
+  </style>
+</head>
+<body>
+
+  <div id="sidebar">
+    <h1>Berlin — Event Deals (7)</h1>
+    <div id="list"></div>
+    <footer>
+      <strong>Note:</strong> Coordinates are approximations. If you want house-number precision use Nominatim / Google Maps. <br>
+      If you want the thumbnail images to show, place the image files in the same folder as this HTML file (see filenames in popups).
+    </footer>
+  </div>
+
+  <div id="map"></div>
+
+  <!-- Leaflet JS -->
+  <script
+    src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+    integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+    crossorigin=""
+  ></script>
+
+  <script>
+    // Places data (names, original addresses, ratings, deals, approximate coords)
+    const places = [
+      {
+        id: 1,
+        name: "OOH! Cookies - Dorotheenstr.",
+        address: "Dorotheenstraße 43, 10117 Berlin",
+        rating: "4.9 (2819)",
+        categories: "Desserts, Loyalty, Event Deal",
+        deals: ["€1 Cookie", "2für1 Heißgetränk"],
+        img: "2627810-DFxlY.jpg",
+        coords: [52.518689, 13.386763]
+      },
+      {
+        id: 2,
+        name: "Home of Dumplings",
+        address: "Skalitzer Str. 103, 10997 Berlin",
+        rating: "4.8 (1914)",
+        categories: "Grill & BBQ, Asiatisch, Event Deal",
+        deals: ["1€ 5er Dumplings", "GRATIS Dessert"],
+        img: "2627810-JI9o2.jpg",
+        coords: [52.499413, 13.427859]
+      },
+      {
+        id: 3,
+        name: "Home of Dumplings Prenzlauer Berg",
+        address: "Kastanienallee 100, 10405 Berlin",
+        rating: "4.7 (114)",
+        categories: "Desserts, Bowls, Asiatisch, Event Deal",
+        deals: ["1€ 5er Dumplings", "GRATIS Dessert"],
+        img: "2627810-JTnEa.jpg",
+        coords: [52.5386, 13.4097]
+      },
+      {
+        id: 4,
+        name: "Let Enzo Out",
+        address: "Revaler Straße 17, 10245 Berlin",
+        rating: "4.8 (364)",
+        categories: "Pasta, Italienisch, Event Deal",
+        deals: ["1€ Pasta", "GRATIS Getränk"],
+        img: "2627810-aFFOv.jpg",
+        coords: [52.5086, 13.4508]
+      },
+      {
+        id: 5,
+        name: "ça va Saigon Bánh MÌ",
+        address: "Ackerstraße 144, 10115 Berlin",
+        rating: "4.6 (25)",
+        categories: "Sandwich, Vietnamesisch, Asiatisch, Event Deal",
+        deals: ["1€ Bánh Mì", "GRATIS Drink"],
+        img: "2627810-1vwcM.jpg",
+        coords: [52.5325, 13.3895]
+      },
+      {
+        id: 6,
+        name: "OOH! Cookies - Europacity",
+        address: "Otto-Weidt-Platz 7, 10557 Berlin",
+        rating: "(new)",
+        categories: "Desserts, Café, Event Deal",
+        deals: ["€1 Cookie", "2für1 Heißgetränk"],
+        img: "2627810-i5Bio.jpg",
+        coords: [52.533333, 13.366667]
+      },
+      {
+        id: 7,
+        name: "Planet Cuisine",
+        address: "Hauptstraße 3, 10827 Berlin",
+        rating: "4.8 (11)",
+        categories: "Halal, Nahöstlich, Bowls, Event Deal",
+        deals: ["3€ Planet-Vegan-Bowl", "GRATIS Drink oder Dessert"],
+        img: null,
+        coords: [52.47812, 13.34378]
+      }
+    ];
+
+    // Create map
+    const map = L.map('map', { zoomControl: true }).setView([52.52, 13.405], 12);
+
+    // Add OSM tile layer
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 19,
+      attribution: '&copy; OpenStreetMap contributors'
+    }).addTo(map);
+
+    // Marker creation + side list
+    const markers = {};
+    const bounds = L.latLngBounds();
+
+    function makePopupHtml(p) {
+      const dealsHtml = p.deals.map(d => `<li>${escapeHtml(d)}</li>`).join('');
+      const imgHtml = p.img ? `<img class="popup-img" src="${encodeURI(p.img)}" alt="${escapeHtml(p.name)} thumbnail" onerror="this.style.display='none'">` : '';
+      return `
+        <div style="min-width:200px;">
+          <strong>${escapeHtml(p.name)}</strong><br/>
+          <small>${escapeHtml(p.rating)} — ${escapeHtml(p.categories)}</small>
+          <div class="deals"><em>Angebote:</em><ul>${dealsHtml}</ul></div>
+          ${imgHtml}
+          <div class="coords">${escapeHtml(p.address)}</div>
+          <a class="open-btn" target="_blank" rel="noopener" href="https://www.google.com/maps/search/?api=1&query=${p.coords[0]},${p.coords[1]}">Open in Google Maps</a>
+        </div>
+      `;
+    }
+
+    function escapeHtml(s) {
+      return String(s)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+    }
+
+    places.forEach(p => {
+      const m = L.marker(p.coords).addTo(map);
+      m.bindPopup(makePopupHtml(p), { minWidth: 220 });
+      markers[p.id] = m;
+      bounds.extend(p.coords);
+    });
+
+    if (!bounds.isValid()) {
+      map.setView([52.52, 13.405], 12);
+    } else {
+      map.fitBounds(bounds.pad(0.25));
+    }
+
+    // build sidebar list
+    const listEl = document.getElementById('list');
+    places.forEach(p => {
+      const el = document.createElement('div');
+      el.className = 'place';
+      el.innerHTML = `<strong>${p.name}</strong><small>${p.address}</small>`;
+      el.addEventListener('click', () => {
+        const m = markers[p.id];
+        map.setView(p.coords, 16);
+        m.openPopup();
+      });
+      listEl.appendChild(el);
+    });
+
+    // optional: open first marker popup by default
+    // markers[places[0].id].openPopup();
+
+  </script>
+</body>
+</html>
+
